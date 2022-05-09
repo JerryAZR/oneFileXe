@@ -1,6 +1,7 @@
 # oneFileXe
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Windows Build](https://github.com/JerryAZR/oneFileXe/actions/workflows/windows-build.yml/badge.svg)](https://github.com/JerryAZR/oneFileXe/actions/workflows/windows-build.yml)
 
 Pack your application along with all its dependencies into a single executable!
 The original application does not have to be statically linked.
