@@ -15,6 +15,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
+get_target_property(target_type Qt6::Core TYPE)
+if (target_type STREQUAL STATIC_LIBRARY)
+    set(CMAKE_EXE_LINKER_FLAGS "-static")
+endif()
+
 add_executable(base
     loader/main.cpp
 )
