@@ -11,7 +11,8 @@ namespace packer {
         ERROR_CANT_CREATE_EXE
     };
 
-    int pack(const QString& dirName, const QString& outName, bool compress);
+    int pack(const QString& dirName, const QString& outName, int compLvl,
+             const QString& loader);
 }
 
 #endif // PACKER_H

@@ -16,13 +16,11 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 add_executable(base
-    constants.h
     loader/main.cpp
 )
 
 add_executable(onefilexe
   main.cpp
-  constants.h
   packer.h
   packer.cpp
 

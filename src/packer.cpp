@@ -3,7 +3,6 @@
 #include <QDataStream>
 #include <QDirIterator>
 #include <QDebug>
-#include "constants.h"
 
 /**
  * @brief pack
@@ -15,7 +14,8 @@
  * @param outName   Name of the output file
  * @return error code (0 if success)
  */
-int packer::pack(const QString &dirName, const QString &outName, bool compress)
+int packer::pack(const QString &dirName, const QString &outName, int compLvl,
+                 const QString &loader)
 {
     QDir appDir(dirName);
     appDir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
@@ -36,7 +36,7 @@ int packer::pack(const QString &dirName, const QString &outName, bool compress)
 
     QFile outFile(outName);
     outFile.remove();
-    if (!QFile(":/loader/bin/base").copy(outName)) {
+    if (!QFile(loader).copy(outName)) {
         qCritical() << "Error:";
         qCritical() << "Cannot create the output executable";
         return packer::ERROR_CANT_CREATE_EXE;
@@ -47,21 +47,16 @@ int packer::pack(const QString &dirName, const QString &outName, bool compress)
                 QFile::WriteOwner |
                 QFile::ExeOther | QFile::ExeOwner | QFile::ExeGroup
                 );
+    // The baseSize is used to locate the start of data stream by the loader
+    // It is appended to the file after we are done with everything else
     long baseSize = outFile.size();
     if (!outFile.open(QFile::Append | QFile::WriteOnly)) {
         qFatal("Failed to open file");
     }
 
-    // Pad the output file
-    if (baseSize > loader::offset) {
-        qFatal("Loader too large. Please increase the offset value");
-    }
-    outFile.write(QByteArray(loader::offset - baseSize, '\0'));
     // We will use QDataStream to simplify the task
     QDataStream fstream(&outFile);
     fstream.setVersion(QDataStream::Qt_6_0);
-    // Set compression flag
-    fstream << compress;
 
     // Append all files
     QDirIterator it(appDir, QDirIterator::Subdirectories);
@@ -77,16 +72,21 @@ int packer::pack(const QString &dirName, const QString &outName, bool compress)
             if (inFile.pos() < inFile.size()) {
                 qFatal("Input file too large");
             }
-            fstream << (compress ? qCompress(content) : content);
+            fstream << qCompress(content, compLvl);
         } else {
             // target is a directory (i.e., not a file)
             fstream << false << relPath;
         }
         inFile.close();
     }
+
+    // Write terminator
+    fstream << false << "";
+    // Write offset
+    outFile.write((char*)&baseSize, sizeof(baseSize));
     outFile.close();
 
-    qInfo() << "Packed directory" << appDir;
+    qInfo() << "Packed directory" << appDir.absolutePath();
     qInfo() << "file saved to" << outName;
 
     return packer::ERROR_NONE;

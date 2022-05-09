@@ -1,4 +1,3 @@
-#include "../constants.h"
 #include <QFile>
 #include <QDir>
 #include <QByteArray>
@@ -16,9 +15,14 @@ int main(int argc, char *argv[])
     QByteArray signature = hash.result()
             .toBase64(QByteArray::Base64UrlEncoding |
                       QByteArray::OmitTrailingEquals);
+    // get offset
+    long offset;
+    source.reset();
+    source.seek(source.size() - sizeof(offset));
+    source.read((char*)&offset, sizeof(offset));
     // get to the payload
     source.reset();
-    source.seek(loader::offset);
+    source.seek(offset);
 
     // Make a temporary directory
     bool dirCheck = QDir::temp().mkdir("ofx" + signature);
@@ -27,12 +31,9 @@ int main(int argc, char *argv[])
         // Create the directory only if it does not already exist
         QDataStream fstream(&source);
         bool isFile;
-        bool compress;
         QString path;
         QByteArray content;
         QFile::Permission permissions;
-        // get compression flag
-        fstream >> compress;
         while (!fstream.atEnd()) {
             fstream >> isFile >> path;
             if (isFile) {
@@ -42,12 +43,17 @@ int main(int argc, char *argv[])
                 QFile outFile(workDir.absoluteFilePath(path));
                 outFile.open(QFile::WriteOnly);
                 // TODO: verify integrity
-                outFile.write(compress ? qUncompress(content) : content);
+                outFile.write(qUncompress(content));
                 outFile.close();
                 outFile.setPermissions(permissions);
             } else {
-                // create the directory
-                workDir.mkpath(path);
+                if (path.length() > 0) {
+                    // create the directory
+                    workDir.mkpath(path);
+                } else {
+                    // end signature (isFile==false, path=="")
+                    break;
+                }
             }
         }
     } else {
