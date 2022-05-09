@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
-add_executable(loader.exe
+add_executable(base
     constants.h
     loader/main.cpp
 )
@@ -28,12 +28,12 @@ add_executable(onefilexe
 
   data.qrc
 )
-target_link_libraries(loader.exe Qt${QT_VERSION_MAJOR}::Core)
+target_link_libraries(base Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(onefilexe Qt${QT_VERSION_MAJOR}::Core)
 
 add_custom_command(
-    OUTPUT ${CMAKE_SOURCE_DIR}/loader/bin/loader.exe
-    DEPENDS loader.exe
+    OUTPUT ${CMAKE_SOURCE_DIR}/loader/bin/base
+    DEPENDS base
     COMMAND ${CMAKE_COMMAND}
-    ARGS -E copy $<TARGET_FILE:loader.exe> ${CMAKE_SOURCE_DIR}/loader/bin/loader.exe
+    ARGS -E copy $<TARGET_FILE:base> ${CMAKE_SOURCE_DIR}/loader/bin/base
 )

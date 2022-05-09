@@ -1,14 +1,7 @@
 #include <QCoreApplication>
 #include <QCommandLineParser>
-#include <QDir>
-#include <QDataStream>
-#include <QDirIterator>
-#include <QCryptographicHash>
 #include <QDebug>
-#include "constants.h"
 #include "packer.h"
-
-
 
 /**
  * @brief main
@@ -41,5 +34,9 @@ int main(int argc, char *argv[])
 
     const QStringList args = parser.positionalArguments();
 
-    return packer::pack(args[0], parser.value(outOption), true);
+    if (args.length() > 0) {
+        return packer::pack(args[0], parser.value(outOption), true);
+    } else {
+        qInfo() << parser.helpText();
+    }
 }

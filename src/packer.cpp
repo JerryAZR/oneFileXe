@@ -36,7 +36,7 @@ int packer::pack(const QString &dirName, const QString &outName, bool compress)
 
     QFile outFile(outName);
     outFile.remove();
-    if (!QFile(":/loader/bin/loader.exe").copy(outName)) {
+    if (!QFile(":/loader/bin/base").copy(outName)) {
         qCritical() << "Error:";
         qCritical() << "Cannot create the output executable";
         return packer::ERROR_CANT_CREATE_EXE;
@@ -52,7 +52,10 @@ int packer::pack(const QString &dirName, const QString &outName, bool compress)
         qFatal("Failed to open file");
     }
 
-    // Pad the output file to 4MB
+    // Pad the output file
+    if (baseSize > loader::offset) {
+        qFatal("Loader too large. Please increase the offset value");
+    }
     outFile.write(QByteArray(loader::offset - baseSize, '\0'));
     // We will use QDataStream to simplify the task
     QDataStream fstream(&outFile);

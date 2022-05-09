@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>loader/bin/loader.exe</file>
+        <file>loader/bin/base</file>
     </qresource>
 </RCC>
