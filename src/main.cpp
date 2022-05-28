@@ -96,10 +96,11 @@ int main(int argc, char *argv[])
     sysPath.append(qgetenv("PATH"));
     qputenv("PATH", sysPath.toUtf8());
 
-    // Auto configure CMake generator
+    // Auto configure CMake generator for built-in compiler
     QString generator = parser.value(generatorOption);
     if (generator.length() == 0 &&
-            parser.value(compilerOption).toLower().contains("mingw")) {
+            parser.value(compilerOption).endsWith("/MinGW/bin") &&
+            QDir(parser.value(compilerOption)).exists()) {
         generator = "MinGW Makefiles";
     }
 
