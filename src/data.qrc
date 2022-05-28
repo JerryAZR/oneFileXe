@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>loader/bin/base</file>
+        <file>loader/CMakeLists.txt</file>
+        <file>loader/main.cpp</file>
     </qresource>
 </RCC>
