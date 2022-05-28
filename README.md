@@ -7,8 +7,7 @@ The original application does not have to be statically linked.
 
 ## Important
 
-* The generated executable is not compatible with [upx](https://upx.github.io/)
-(but you can use upx on any input executables)
+* This is a Qt-CMake based version that is combatible with [upx](https://upx.github.io/)
 * Although this software is intended to be cross-platform, I would highly recommend using
 [AppImage](https://appimage.org/) if you are on Linux.
 
@@ -46,5 +45,7 @@ Here is an example:
 
 ### Basic
 
-The application directory is appended to a pre-built loader. The loader first
-recreates the directory when it runs, then runs the entry-point file (AppRun).
+A Qt-CMake project is created for each packed application. Everything in the
+application directory is added to the Qt resource system. The project is then
+statically built with a loader which unpacks the application directory and runs
+`AppRun` on start up.
