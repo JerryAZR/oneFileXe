@@ -35,10 +35,10 @@ int main(int argc, char *argv[])
                 a.translate("main", "loader"),
                 ":/loader");
     QCommandLineOption qtOption(
-                QStringList() << "qt-bin",
-                a.translate("main", "Prepend <qt_path> to system PATH"),
+                QStringList() << "qt",
+                a.translate("main", "Search in <qt_path> for tools and libs"),
                 a.translate("main", "qt_path"),
-                exeDir + "/Qt/bin"
+                exeDir + "/Qt"
                 );
     QCommandLineOption compilerOption(
                 QStringList() << "compiler-bin",
@@ -46,18 +46,7 @@ int main(int argc, char *argv[])
                 a.translate("main", "compiler_path"),
                 exeDir + "/MinGW/bin"
                 );
-    QCommandLineOption cmakeOption(
-                QStringList() << "cmake-bin",
-                a.translate("main", "Prepend <cmake_path> to system PATH"),
-                a.translate("main", "cmake_path"),
-                exeDir + "/CMake/bin"
-                );
-    QCommandLineOption generatorOption(
-                QStringList() << "G" << "generator",
-                a.translate("main", "Set CMake generator to <generator>"),
-                a.translate("main", "generator"),
-                ""
-                );
+
     parser.addHelpOption();
     parser.addPositionalArgument(
                 "AppDir",
@@ -68,8 +57,6 @@ int main(int argc, char *argv[])
     parser.addOption(loaderOption);
     parser.addOption(qtOption);
     parser.addOption(compilerOption);
-    parser.addOption(cmakeOption);
-    parser.addOption(generatorOption);
 
     parser.process(a);
 
@@ -87,28 +74,17 @@ int main(int argc, char *argv[])
     QChar envSeparator(':');
 #endif
     QString sysPath;
-    sysPath.append(QDir::toNativeSeparators(parser.value(qtOption)));
-    sysPath.append(envSeparator);
     sysPath.append(QDir::toNativeSeparators(parser.value(compilerOption)));
-    sysPath.append(envSeparator);
-    sysPath.append(QDir::toNativeSeparators(parser.value(cmakeOption)));
     sysPath.append(envSeparator);
     sysPath.append(qgetenv("PATH"));
     qputenv("PATH", sysPath.toUtf8());
 
-    // Auto configure CMake generator for built-in compiler
-    QString generator = parser.value(generatorOption);
-    if (generator.length() == 0 &&
-            parser.value(compilerOption).endsWith("/MinGW/bin") &&
-            QDir(parser.value(compilerOption)).exists()) {
-        generator = "MinGW Makefiles";
-    }
-
     const QStringList args = parser.positionalArguments();
 
     if (args.length() > 0) {
+        QString qtPrefix = QDir(parser.value(qtOption)).absolutePath();
         return packer::pack(args[0], parser.value(outOption), compLvl,
-                parser.value(loaderOption), generator);
+                parser.value(loaderOption), qtPrefix);
     } else {
         QTextStream outstream(stdout);
         outstream << parser.helpText();

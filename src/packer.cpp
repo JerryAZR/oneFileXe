@@ -1,10 +1,12 @@
 #include "packer.h"
 #include <QDir>
+#include <QTemporaryDir>
 #include <QDataStream>
 #include <QTextStream>
 #include <QDirIterator>
 #include <QProcess>
 #include <QDebug>
+#include "cxxoptions.h"
 
 /**
  * @brief pack
@@ -17,7 +19,7 @@
  * @return error code (0 if success)
  */
 int packer::pack(const QString &dirName, const QString &outName, int compLvl,
-                 const QString &loader, const QString &generator)
+                 const QString &loader, const QString &qtPath)
 {
     QDir appDir(dirName);
     appDir.makeAbsolute();
@@ -37,22 +39,23 @@ int packer::pack(const QString &dirName, const QString &outName, int compLvl,
         return packer::ERROR_NO_APPRUN;
     }
 
-    // Create source directory for cmake project
-    QDir cmakeSrcDir("src-ofx");
+    // Create temporary build directory
+    QTemporaryDir tmpDir;
+    QDir buildDir(tmpDir.path());
 
     // Copy project template (loader) to build directory
-    if (not cpDirContent(loader, cmakeSrcDir.path())) {
+    if (not cpDirContent(loader, buildDir.path())) {
         qCritical() << "Error: cannot create project";
         return packer::ERROR_CANT_CREATE_PROJECT;
     }
 
     // Copy AppDir to build directory
-    if (not cpDirContent(dirName, cmakeSrcDir.filePath("AppDir"))) {
+    if (not cpDirContent(dirName, buildDir.filePath("AppDir"))) {
         return packer::ERROR_CANT_COPY_APPDIR;
     }
 
     // Create resource file
-    QFile qrcFile(cmakeSrcDir.filePath("data.qrc"));
+    QFile qrcFile(buildDir.filePath("data.qrc"));
     qrcFile.open(QFile::WriteOnly);
     QTextStream qrcStream(&qrcFile);
     qrcStream << "<RCC><qresource prefix=\"/\">\n";
@@ -70,66 +73,97 @@ int packer::pack(const QString &dirName, const QString &outName, int compLvl,
     qrcStream << "</qresource></RCC>\n";
     qrcFile.close();
 
-    // TODO: build project
-    // Remove CMakeCache.txt, ignore error
-    QFile::remove("build-ofx/CMakeCache.txt");
     QProcess process;
     process.setProcessChannelMode(QProcess::ForwardedChannels);
     process.setInputChannelMode(QProcess::ForwardedInputChannel);
 
-    // CMake configuration
-    QStringList confArgs;
-    confArgs << "-S" << "src-ofx" << "-B" << "build-ofx"
-              << "-DCMAKE_BUILD_TYPE=Release";
-    if (generator.length() > 0) {
-        confArgs << "-G" << generator;
-    }
-#ifdef Q_OS_WIN
-    process.start("qt-cmake.bat", confArgs);
-#else
-    process.start("qt-cmake", confArgs);
-#endif
+    // Run rcc
+    QDir qtRoot(qtPath);
+    QString rcc = qtRoot.absoluteFilePath("bin/rcc");
+    QString data_qrc = buildDir.absoluteFilePath("data.qrc");
+    QString data_cpp = buildDir.absoluteFilePath("data.cpp");
+    QStringList rccArgs = {data_qrc, "-o", data_cpp};
+    qInfo() << "Step (1/4):" << data_qrc << "-->" << data_cpp;
+    process.start(rcc, rccArgs);
     if (!process.waitForStarted()) {
-        qCritical() << "cmake failed to start";
+        qCritical() << "rcc failed to start";
         qCritical() << process.errorString();
-        qCritical() << "Using system PATH:" << qgetenv("PATH");
-        return packer::ERROR_CMAKE_CONF_FAILED;
+        return packer::ERROR_BUILD_FAILED;
     }
     // The process should not timeout
     process.waitForFinished(-1);
     if (process.exitCode() != 0) {
-        qCritical() << "CMake failed with exit code" << process.exitCode();
-        return packer::ERROR_CMAKE_CONF_FAILED;
+        qCritical() << "rcc failed with exit code" << process.exitCode();
+        return packer::ERROR_BUILD_FAILED;
     }
 
-    // CMake build
-    QStringList buildArgs;
-    buildArgs << "--build" << "build-ofx" << "--parallel";
-    process.start("cmake", buildArgs);
+    // Compile data.o
+    QString data_o = buildDir.absoluteFilePath("data.o");
+    QString incPath1 = "-I" + qtRoot.absoluteFilePath("include");
+    QString incPath2 = "-I" + qtRoot.absoluteFilePath("include/QtCore");
+    QString incPath3 = "-I" + qtRoot.absoluteFilePath("mkspecs/win32-g++");
+    QStringList gppArgs1 = {
+        "-c", data_cpp, "-o", data_o, incPath1, incPath2, incPath3
+    };
+    qInfo() << "Step (2/4):" << data_cpp << "-->" << data_o;
+    process.start("g++", gppArgs1 + cxx::CXXFLAGS);
     if (!process.waitForStarted()) {
-        qCritical() << "cmake failed to start";
+        qCritical() << "g++ failed to start";
         qCritical() << process.errorString();
-        qCritical() << "Using system PATH:" << qgetenv("PATH");
-        return packer::ERROR_CMAKE_BUILD_FAILED;
+        return packer::ERROR_BUILD_FAILED;
     }
     // The process should not timeout
     process.waitForFinished(-1);
     if (process.exitCode() != 0) {
-        qCritical() << "CMake build failed with exit code" << process.exitCode();
-        return packer::ERROR_CMAKE_BUILD_FAILED;
+        qCritical() << "Failed to generate" << data_o;
+        qCritical() << "g++ failed with exit code" << process.exitCode();
+        return packer::ERROR_BUILD_FAILED;
     }
 
-    // Move project
-    QFile::remove(outName);
-#ifdef Q_OS_WIN
-    if (not QFile("build-ofx/app.exe").copy(outName)) {
-#else
-    if (not QFile("build-ofx/app").copy(outName)) {
-#endif
-        qCritical() << "Cannot create executable" << outName;
+    // Compile main.o
+    QString main_cpp = buildDir.absoluteFilePath("main.cpp");
+    QString main_o = buildDir.absoluteFilePath("main.o");
+    QStringList gppArgs2 = {
+        "-c", main_cpp, "-o", main_o, incPath1, incPath2, incPath3
+    };
+    qInfo() << "Step (3/4):" << main_cpp << "-->" << main_o;
+    process.start("g++", gppArgs2 + cxx::CXXFLAGS);
+    if (!process.waitForStarted()) {
+        qCritical() << "g++ failed to start";
+        qCritical() << process.errorString();
+        return packer::ERROR_BUILD_FAILED;
+    }
+    // The process should not timeout
+    process.waitForFinished(-1);
+    if (process.exitCode() != 0) {
+        qCritical() << "Failed to generate" << main_o;
+        qCritical() << "g++ failed with exit code" << process.exitCode();
+        return packer::ERROR_BUILD_FAILED;
+    }
+
+    // Link executable
+    QString libQt6Core = qtRoot.absoluteFilePath("lib/libQt6Core.a");
+    QString libQt6BundledPcre2 =
+            qtRoot.absoluteFilePath("lib/libQt6BundledPcre2.a");
+    QStringList ldArgs = {
+        "-o", outName, data_o, main_o, libQt6Core, libQt6BundledPcre2
+    };
+    qInfo() << "Step (4/4):" << main_o << data_o << "-->" << outName;
+    process.start("g++", ldArgs + cxx::LFLAGS + cxx::LIBS);
+    if (!process.waitForStarted()) {
+        qCritical() << "g++ failed to start";
+        qCritical() << process.errorString();
+        return packer::ERROR_BUILD_FAILED;
+    }
+    // The process should not timeout
+    process.waitForFinished(-1);
+    if (process.exitCode() != 0) {
+        qCritical() << "Failed to generate" << outName;
+        qCritical() << "g++ failed with exit code" << process.exitCode();
         return packer::ERROR_CANT_CREATE_EXE;
     }
 
+    qInfo() << "Successfully packed" << dirName << "into" << outName;
     return packer::ERROR_NONE;
 }
 

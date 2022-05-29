@@ -27,6 +27,7 @@ endif()
 
 add_executable(onefilexe
   main.cpp
+  cxxoptions.h
   packer.h
   packer.cpp
 

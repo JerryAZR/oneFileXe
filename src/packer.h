@@ -11,12 +11,11 @@ namespace packer {
         ERROR_CANT_CREATE_EXE,
         ERROR_CANT_CREATE_PROJECT,
         ERROR_CANT_COPY_APPDIR,
-        ERROR_CMAKE_CONF_FAILED,
-        ERROR_CMAKE_BUILD_FAILED
+        ERROR_BUILD_FAILED
     };
 
     int pack(const QString& dirName, const QString& outName, int compLvl,
-             const QString& loader, const QString& generator);
+             const QString& loader, const QString& qtPath);
     bool cpDirContent(const QString& src, const QString& dest);
 }
 
