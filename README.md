@@ -1,13 +1,15 @@
 # oneFileXe
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Windows Build](https://github.com/JerryAZR/oneFileXe/actions/workflows/windows-build.yml/badge.svg)](https://github.com/JerryAZR/oneFileXe/actions/workflows/windows-build.yml)
 
 Pack your application along with all its dependencies into a single executable!
 The original application does not have to be statically linked.
 
 ## Important
 
-* This is a Qt-CMake based version that is combatible with [upx](https://upx.github.io/)
+* Unlike the legacy version, this is a Qt-g++ based version that is combatible
+with [upx](https://upx.github.io/)
 * Although this software is intended to be cross-platform, I would highly recommend using
 [AppImage](https://appimage.org/) if you are on Linux.
 
@@ -45,7 +47,7 @@ Here is an example:
 
 ### Basic
 
-A Qt-CMake project is created for each packed application. Everything in the
+A Qt project is created for each packed application. Everything in the
 application directory is added to the Qt resource system. The project is then
 statically built with a loader which unpacks the application directory and runs
 `AppRun` on start up.
