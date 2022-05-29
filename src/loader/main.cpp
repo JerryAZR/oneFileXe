@@ -4,10 +4,12 @@
 #include <QDataStream>
 #include <QProcess>
 #include <QCryptographicHash>
+#include <QCoreApplication>
 
 int main(int argc, char *argv[])
 {
-    QFile source(argv[0]);
+    QCoreApplication a(argc, argv);
+    QFile source(QCoreApplication::applicationFilePath());
     source.open(QFile::ReadOnly);
     // Calculate the file signature
     QCryptographicHash hash(QCryptographicHash::Sha256);
@@ -25,9 +27,11 @@ int main(int argc, char *argv[])
     source.seek(offset);
 
     // Make a temporary directory
-    bool dirCheck = QDir::temp().mkdir("ofx" + signature);
+    QDir::temp().mkdir("ofx" + signature);
     QDir workDir(QDir::tempPath() + "/ofx" + signature);
-    if (dirCheck) {
+    // Check magic file "onefilexe.ready"
+    QFile readyFile(workDir.absoluteFilePath("onefilexe.ready"));
+    if (not readyFile.exists()) {
         // Create the directory only if it does not already exist
         QDataStream fstream(&source);
         bool isFile;
@@ -37,15 +41,17 @@ int main(int argc, char *argv[])
         while (!fstream.atEnd()) {
             fstream >> isFile >> path;
             if (isFile) {
-                // Create the file and write the content
-                fstream >> permissions;
-                fstream >> content;
                 QFile outFile(workDir.absoluteFilePath(path));
-                outFile.open(QFile::WriteOnly);
-                // TODO: verify integrity
-                outFile.write(qUncompress(content));
-                outFile.close();
-                outFile.setPermissions(permissions);
+                // skip if file exists
+                if (not outFile.exists()) {
+                    // Create the file and write the content
+                    fstream >> permissions;
+                    fstream >> content;
+                    outFile.open(QFile::WriteOnly);
+                    outFile.write(qUncompress(content));
+                    outFile.close();
+                    outFile.setPermissions(permissions);
+                }
             } else {
                 if (path.length() > 0) {
                     // create the directory
@@ -56,8 +62,9 @@ int main(int argc, char *argv[])
                 }
             }
         }
-    } else {
-        // pass
+        // Create the readyfile
+        readyFile.open(QFile::WriteOnly);
+        readyFile.close();
     }
 
     // Run the application
